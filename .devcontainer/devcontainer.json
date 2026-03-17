@@ -1,0 +1,27 @@
+{
+  "name": "openGauss Lite Dev",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+
+  // The database needs elevated IPC limits for semaphores/shared memory.
+  "runArgs": [
+    "--privileged",
+    "--sysctl", "kernel.sem=250 85000 250 330"
+  ],
+
+  "remoteUser": "vscode",
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-vscode.cpptools",
+        "twxs.cmake"
+      ]
+    }
+  },
+
+  // Light-weight project-specific setup only — heavy packages are
+  // already baked into the Dockerfile.
+  "postCreateCommand": "sudo bash .devcontainer/setup.sh"
+}
