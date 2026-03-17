@@ -11,5 +11,6 @@
         "twxs.cmake"
       ]
     }
-  }
+  },
+  "postCreateCommand": "sudo bash .devcontainer/setup.sh"
 }
