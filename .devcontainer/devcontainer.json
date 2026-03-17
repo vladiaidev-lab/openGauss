@@ -1,5 +1,5 @@
 {
-  "name": "openGauss Lite Dev",
+  "name": "openGauss Lite Dev (Ubuntu 22.04)",
   "build": {
     "dockerfile": "Dockerfile"
   },
