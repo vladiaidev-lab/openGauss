@@ -3,27 +3,5 @@
   "build": {
     "dockerfile": "Dockerfile"
   },
-
-  // --privileged grants CAP_SYS_ADMIN so we can tune kernel.sem
-  // at runtime inside the container (see setup.sh).
-  // DO NOT add --sysctl here — Codespaces' managed Docker host
-  // rejects sysctl flags in runArgs, causing a silent build failure.
-  "runArgs": [
-    "--privileged"
-  ],
-
-  "remoteUser": "vscode",
-
-  "customizations": {
-    "vscode": {
-      "extensions": [
-        "ms-vscode.cpptools",
-        "twxs.cmake"
-      ]
-    }
-  },
-
-  // Light-weight project-specific setup only — heavy packages are
-  // already baked into the Dockerfile.
-  "postCreateCommand": "sudo bash .devcontainer/setup.sh"
+  "remoteUser": "vscode"
 }
