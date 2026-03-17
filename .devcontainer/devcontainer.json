@@ -3,5 +3,13 @@
   "build": {
     "dockerfile": "Dockerfile"
   },
-  "remoteUser": "vscode"
+  "remoteUser": "vscode",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-vscode.cpptools",
+        "twxs.cmake"
+      ]
+    }
+  }
 }
