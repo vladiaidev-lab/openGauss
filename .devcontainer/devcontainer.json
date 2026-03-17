@@ -4,10 +4,12 @@
     "dockerfile": "Dockerfile"
   },
 
-  // The database needs elevated IPC limits for semaphores/shared memory.
+  // --privileged grants CAP_SYS_ADMIN so we can tune kernel.sem
+  // at runtime inside the container (see setup.sh).
+  // DO NOT add --sysctl here — Codespaces' managed Docker host
+  // rejects sysctl flags in runArgs, causing a silent build failure.
   "runArgs": [
-    "--privileged",
-    "--sysctl", "kernel.sem=250 85000 250 330"
+    "--privileged"
   ],
 
   "remoteUser": "vscode",

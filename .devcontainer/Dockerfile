@@ -1,4 +1,7 @@
-FROM openeuler/openeuler:22.03-lts
+# Use the "22.03" shorthand tag — it always points to the latest
+# service pack of the 22.03 LTS series and is the tag Docker Hub
+# lists as the recommended alias.
+FROM openeuler/openeuler:22.03
 
 # ── System dependencies (cached in image layer) ─────────────────────
 # Build toolchain (from the openGauss Software Dependency Matrix)
@@ -14,7 +17,7 @@ RUN dnf install -y \
         ncurses-devel \
         readline-devel \
         unixODBC unixODBC-devel \
-        sudo shadow \
+        sudo shadow procps-ng \
     && dnf clean all
 
 # ── Create the vscode user for Codespaces ────────────────────────────
