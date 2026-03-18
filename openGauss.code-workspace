@@ -1,0 +1,12 @@
+{
+  "folders": [
+    {
+      "path": "."
+    },
+    {
+      "path": "/opt/software/openGauss/server",
+      "name": "openGauss-server"
+    }
+  ],
+  "settings": {}
+}
