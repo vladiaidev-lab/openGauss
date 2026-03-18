@@ -39,6 +39,13 @@ code /opt/software/openGauss/server/src/gausskernel/
 
 # Or open interactive session
 ./scripts/og-connect.sh
+
+#5. Few SELECT queries to verify 
+SELECT version();
+SELECT * FROM pg_user;
+SELECT datname FROM pg_database;
+SELECT * FROM pg_user;
+SELECT relname, relkind FROM pg_class LIMIT 10;
 ```
 
 ## Key Paths
