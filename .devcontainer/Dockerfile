@@ -33,9 +33,10 @@ RUN wget -q http://archive.ubuntu.com/ubuntu/pool/main/o/openssl/libssl1.1_1.1.1
     && rm libssl1.1_1.1.1f-1ubuntu2_amd64.deb
 
 # Stub headers removed from modern glibc
-RUN printf '#ifndef _SYS_SYSCTL_H\n#define _SYS_SYSCTL_H\n#include <linux/sysctl.h>\n#endif\n' > /usr/include/sys/sysctl.h \
+RUN mkdir -p /usr/include/sys \
+    && printf '#ifndef _SYS_SYSCTL_H\n#define _SYS_SYSCTL_H\n#include <linux/sysctl.h>\n#endif\n' > /usr/include/sys/sysctl.h \
     && printf '#ifndef _SYS_VTIMES_H\n#define _SYS_VTIMES_H\n#include <sys/resource.h>\nstruct vtimes { int vm_utime; int vm_stime; int vm_idsrss; int vm_ixrss; int vm_maxrss; int vm_pagein; int vm_majflt; int vm_minflt; int vm_nswap; int vm_inblk; int vm_oublk; };\n#endif\n' > /usr/include/sys/vtimes.h
-
+    
 # JNI headers accessible globally
 RUN ln -sf /usr/lib/jvm/java-8-openjdk-amd64/include/jni.h /usr/include/jni.h \
     && ln -sf /usr/lib/jvm/java-8-openjdk-amd64/include/linux/jni_md.h /usr/include/jni_md.h
