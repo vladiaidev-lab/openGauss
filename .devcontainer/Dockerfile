@@ -57,3 +57,8 @@ RUN mkdir -p /opt/software/openGauss/data \
 ENV LANG=en_US.UTF-8
 ENV LC_ALL=en_US.UTF-8
 ENV JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
+
+# Node.js for Claude Code
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs \
+    && rm -rf /var/lib/apt/lists/*
