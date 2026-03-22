@@ -58,6 +58,16 @@ VS Code will reload. You'll need to re-add the server folder after Step 4.
 
 ## Step 4: Clone the openGauss Source (~2 min)
 
+### Option A: Clone from your private fork (recommended — patches already applied)
+```bash
+sudo -u omm bash -c '
+  cd /opt/software/openGauss
+  git lfs install
+  git clone -b my-changes https://github.com/vladiaidev-lab/openGauss-server.git server
+'
+```
+
+### Option B: Clone from upstream (if fork is unavailable)
 ```bash
 sudo -u omm bash -c '
   cd /opt/software/openGauss
@@ -68,10 +78,7 @@ sudo -u omm bash -c '
 '
 ```
 
-### Apply the source patches for Ubuntu compatibility
-
-Two files need modification to compile on Ubuntu:
-
+Then apply the source patches for Ubuntu compatibility:
 ```bash
 # 1. Fix gettimeofday ambiguity in commproxy_interface.h
 sudo -u omm sed -i 's|^extern int gettimeofday(struct timeval\* tp, struct timezone\* tzp);|// removed for Ubuntu: extern int gettimeofday(struct timeval* tp, struct timezone* tzp);|' \
@@ -82,16 +89,10 @@ sudo -u omm sed -i 's|gettimeofday(&(t), NULL)|gettimeofday(\&(t), (struct timez
   /opt/software/openGauss/server/src/include/portability/instr_time.h
 ```
 
-### Verify patches
-
+### After cloning (either option), add the fork remote and add to workspace
 ```bash
-grep "removed for Ubuntu" /opt/software/openGauss/server/src/include/communication/commproxy_interface.h
-grep "struct timezone" /opt/software/openGauss/server/src/include/portability/instr_time.h
-```
-
-### Add server to workspace
-
-```bash
+cd /opt/software/openGauss/server
+sudo -u omm git remote add myfork https://github.com/vladiaidev-lab/openGauss-server.git
 code -a /opt/software/openGauss/server
 ```
 
