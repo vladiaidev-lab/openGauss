@@ -1,7 +1,7 @@
 # openGauss 7.0.0-RC2 — Codespaces Recovery & Setup Guide
 
 > **Purpose**: Rebuild the full development environment from scratch if the Codespace is lost.
-> Everything below was field-tested on GitHub Codespaces (Ubuntu 22.04) on 2026-03-18.
+> Field-tested on GitHub Codespaces (Ubuntu 22.04) on 2026-03-18 and 2026-03-22.
 
 ---
 
@@ -25,25 +25,38 @@ Wait for the Dockerfile to build (~5-10 minutes on first build, cached after tha
 Once the terminal opens, verify the environment:
 
 ```bash
-gcc --version       # should show Ubuntu's GCC 11.x
-lsb_release -a      # Ubuntu 22.04
-ls /usr/include/sys/sysctl.h   # stub header should exist
-ls /usr/lib64/crt1.o           # symlink should exist
+gcc --version                    # should show Ubuntu's GCC 11.x
+lsb_release -a                   # Ubuntu 22.04
+ls /usr/include/sys/sysctl.h     # stub header should exist
+ls /usr/include/sys/socket.h     # arch symlink should exist
+ls /usr/lib64/crt1.o             # CRT symlink should exist
+node --version                   # Node.js for Claude Code
 ```
 
 ---
 
-## Step 2: Open the Multi-Root Workspace
+## Step 2: Install and Authenticate Claude Code
+
+```bash
+curl -fsSL https://claude.ai/install.sh | bash
+claude
+```
+
+When `/login` shows a URL, open it in your regular browser. Before clicking Authorize, go to the **Ports** tab in VS Code (bottom panel) and set all ports to **Public**. Then complete the authorization in the browser.
+
+---
+
+## Step 3: Open the Multi-Root Workspace
 
 ```bash
 code openGauss.code-workspace
 ```
 
-VS Code will reload. You'll need to re-add the server folder after Step 3.
+VS Code will reload. You'll need to re-add the server folder after Step 4.
 
 ---
 
-## Step 3: Clone the openGauss Source (~2 min)
+## Step 4: Clone the openGauss Source (~2 min)
 
 ```bash
 sudo -u omm bash -c '
@@ -84,7 +97,9 @@ code -a /opt/software/openGauss/server
 
 ---
 
-## Step 4: Download the Precompiled Third-Party Libraries (~5 min)
+## Step 5: Download the Precompiled Third-Party Libraries (~5 min)
+
+You can start this in a second terminal while Step 4 is still cloning.
 
 ```bash
 sudo -u omm bash -c '
@@ -95,9 +110,15 @@ sudo -u omm bash -c '
 '
 ```
 
+### Verify extraction
+
+```bash
+du -sh /opt/software/openGauss/binarylibs && echo "DONE"
+```
+
 ---
 
-## Step 5: First Build (~25-30 min)
+## Step 6: First Build (~25-30 min)
 
 ```bash
 sudo -u omm bash -c '
@@ -109,17 +130,25 @@ sudo -u omm bash -c '
 ' 2>&1 | tee /tmp/build.log
 ```
 
+### Monitor build progress (in another terminal)
+
+```bash
+pgrep cc1plus | wc -l
+```
+
 ### Verify build succeeded
 
 ```bash
 ls -l /opt/software/openGauss/server/mppdb_temp_install/bin/gaussdb && echo "BUILD SUCCESS"
 ```
 
+> **Note**: Warnings about `libog_query.so` and `SPQ_ROOT` at the end are harmless plugin messages, not build failures.
+
 ---
 
-## Step 6: Download the Pre-built Server (for the data directory) (~1 min)
+## Step 7: Download the Pre-built Server and Initialize Data Directory (~2 min)
 
-You need a pre-built server to run `install.sh` which creates the initial data directory with `gs_initdb`. This is faster than using your debug build for initialization.
+You need the pre-built server to run `gs_initdb` which creates the initial data directory.
 
 ```bash
 sudo -u omm bash -c '
@@ -130,13 +159,22 @@ sudo -u omm bash -c '
 '
 ```
 
+### Copy dependency libraries to standard paths
+
+The pre-built binaries need libraries in `/usr/lib64/`:
+
+```bash
+sudo cp /opt/software/openGauss/install/dependency/* /usr/lib64/ 2>/dev/null
+sudo ldconfig
+```
+
 ### Run the installer to create the data directory
 
 ```bash
 sudo -u omm bash -c '
   export LANG=en_US.UTF-8
   export LC_ALL=en_US.UTF-8
-  export LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH
+  export LD_LIBRARY_PATH=/usr/lib64:/opt/software/openGauss/app/lib:/opt/software/openGauss/install/dependency:/usr/lib/x86_64-linux-gnu
   cd /opt/software/openGauss/install
   bash install.sh \
     -D /opt/software/openGauss/data \
@@ -148,16 +186,23 @@ sudo -u omm bash -c '
 This will:
 - Decompress binaries to `/opt/software/openGauss/app`
 - Run `gs_initdb` to create the data cluster at `/opt/software/openGauss/data`
-- The auto-start may fail (that's OK — we'll use our source build)
+- The `gs_guc` config tuning at the end may fail — that's OK, we configure manually next
+
+### Copy app libraries to standard paths (for gs_guc and other tools)
+
+```bash
+sudo cp /opt/software/openGauss/app/lib/lib*.so* /usr/lib64/ 2>/dev/null
+sudo ldconfig
+```
 
 ---
 
-## Step 7: Configure TCP Access
+## Step 8: Configure TCP Access
 
 ```bash
 sudo -u omm bash -c '
   export GAUSSHOME=/opt/software/openGauss/app
-  export LD_LIBRARY_PATH=$GAUSSHOME/lib:/opt/software/openGauss/install/dependency:/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH
+  export LD_LIBRARY_PATH=$GAUSSHOME/lib:/opt/software/openGauss/install/dependency:/usr/lib64:/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH
   export PATH=$GAUSSHOME/bin:$PATH
 
   gs_guc set -D /opt/software/openGauss/data -c "listen_addresses = '\''*'\''"
@@ -172,13 +217,13 @@ EOF
 
 ---
 
-## Step 8: Start the Source-Built Server
+## Step 9: Start the Source-Built Server
 
 ```bash
 sudo -u omm bash -c '
   rm -f /opt/software/openGauss/data/postmaster.pid
   export GAUSSHOME=/opt/software/openGauss/server/mppdb_temp_install
-  export LD_LIBRARY_PATH=$GAUSSHOME/lib:/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH
+  export LD_LIBRARY_PATH=$GAUSSHOME/lib:/usr/lib64:/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH
   export PATH=$GAUSSHOME/bin:$PATH
   export LANG=en_US.UTF-8
   gs_ctl start -D /opt/software/openGauss/data -Z single_node
@@ -190,17 +235,17 @@ sudo -u omm bash -c '
 ```bash
 sudo -u omm bash -c '
   export GAUSSHOME=/opt/software/openGauss/server/mppdb_temp_install
-  export LD_LIBRARY_PATH=$GAUSSHOME/lib:/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH
+  export LD_LIBRARY_PATH=$GAUSSHOME/lib:/usr/lib64:/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH
   export PATH=$GAUSSHOME/bin:$PATH
   gsql -d postgres -c "SELECT version();"
 '
 ```
 
-Expected: `... debug on x86_64-unknown-linux-gnu ...`
+Expected: `... compiled at 2026-xx-xx ... debug on x86_64-unknown-linux-gnu ...`
 
 ---
 
-## Step 9: Set Up ODBC (for C++ testing)
+## Step 10: Set Up ODBC (for C++ testing)
 
 ### Download the ODBC driver
 
@@ -245,7 +290,7 @@ isql -v openGaussDev omm "Dev@12345"
 
 ---
 
-## Step 10: Test C++ Program
+## Step 11: Test C++ Program
 
 ```bash
 cd /workspaces/openGauss
@@ -261,6 +306,15 @@ Expected:
 ```
 Connected to openGauss!
 Server version: (openGauss 7.0.0-RC2 build ...) ... debug ...
+```
+
+---
+
+## Step 12: Copy CLAUDE.md to Server Source
+
+```bash
+sudo cp /workspaces/openGauss/CLAUDE.md /opt/software/openGauss/server/CLAUDE.md
+sudo chown omm:dbgrp /opt/software/openGauss/server/CLAUDE.md
 ```
 
 ---
@@ -288,17 +342,73 @@ Server version: (openGauss 7.0.0-RC2 build ...) ... debug ...
 | Data directory | `/opt/software/openGauss/data/` |
 | Database password | `Dev@12345` |
 
+## Quick Reference: Daily Dev Workflow
+
+```bash
+# Edit source code in /opt/software/openGauss/server/src/
+cd /workspaces/openGauss
+
+# Incremental build (~2-5 min)
+./scripts/og-build.sh
+
+# Restart server with new binary
+./scripts/og-start.sh restart
+
+# Test
+./scripts/og-connect.sh postgres "SELECT version();"
+
+# Or interactive SQL
+./scripts/og-connect.sh
+```
+
 ## Estimated Recovery Time
 
 | Step | Time |
 |---|---|
 | Codespace creation (Dockerfile build, cached) | ~2 min |
+| Claude Code install + login | ~2 min |
 | Clone source + checkout tag | ~2 min |
 | Apply source patches | ~1 min |
 | Download binarylibs (1.5 GB) | ~5 min |
 | Extract binarylibs | ~3 min |
 | First full build | ~25-30 min |
-| Download Lite + init data | ~2 min |
+| Download Lite + init data + copy libs | ~3 min |
 | Configure + start server | ~1 min |
 | Download ODBC + configure | ~1 min |
 | **Total** | **~45-50 min** |
+
+## Troubleshooting
+
+### Build fails with "sys/socket.h: No such file or directory"
+The Dockerfile should handle this, but if needed manually:
+```bash
+sudo bash -c 'for f in /usr/include/x86_64-linux-gnu/sys/*.h; do
+  base=$(basename "$f")
+  [ ! -e "/usr/include/sys/$base" ] && ln -sf "$f" "/usr/include/sys/$base"
+done'
+sudo bash -c 'for d in asm bits gnu; do
+  [ ! -e "/usr/include/$d" ] && ln -sf "/usr/include/x86_64-linux-gnu/$d" "/usr/include/$d"
+done'
+```
+
+### gs_initdb fails with "libcgroup.so.2: cannot open"
+```bash
+sudo cp /opt/software/openGauss/install/dependency/* /usr/lib64/ 2>/dev/null
+sudo ldconfig
+```
+
+### Claude Code says "Not logged in"
+Ensure Node.js is installed (`node --version`). If missing:
+```bash
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo bash -
+sudo apt-get install -y nodejs
+```
+Then run `claude` and complete the OAuth login with ports set to Public.
+
+### Build fails with "gettimeofday ambiguous"
+Source patches from Step 4 were not applied. Re-run the `sed` commands.
+
+### Server won't start — "postmaster.pid already exists"
+```bash
+sudo -u omm rm -f /opt/software/openGauss/data/postmaster.pid
+```
